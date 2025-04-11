@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [build]
 builder = "nixpacks"
 buildCommand = "dotnet build"
@@ -13,3 +14,20 @@ restartPolicyMaxRetries = 10
 ASPNETCORE_ENVIRONMENT = "Production"
 ASPNETCORE_URLS = "http://+:5000"
 DOTNET_VERSION = "8.0.0" 
+=======
+[build]
+builder = "nixpacks"
+buildCommand = "dotnet build"
+
+[deploy]
+startCommand = "dotnet run"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[deploy.envs]
+ASPNETCORE_ENVIRONMENT = "Production"
+ASPNETCORE_URLS = "http://+:5000" 
+DOTNET_VERSION = "8.0.0" 
+>>>>>>> 8419c4d72f18ba43bd6d9b533785299586eec961
