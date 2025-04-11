@@ -194,10 +194,12 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         {
             _logger.LogInformation("Начинаем получение списка квизов для пользователя {ChatId}", chatId);
             
-            using var context = CreateDbContext();
+            using var context = _dbContextFactory.CreateDbContext();
             _logger.LogInformation("Контекст БД создан успешно");
             
-            var quizzes = await context.Quizzes.ToListAsync();
+            var quizzes = await context.Quizzes
+                .Include(q => q.Questions)
+                .ToListAsync();
             _logger.LogInformation("Получено {Count} квизов из базы данных", quizzes?.Count ?? 0);
             
             if (!quizzes.Any())

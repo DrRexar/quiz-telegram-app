@@ -10,9 +10,10 @@ public class ApplicationDbContext : DbContext
         : base(options)
     {
         // Включаем логирование SQL-запросов
-        Database.SetCommandTimeout(TimeSpan.FromSeconds(30));
+        Database.SetCommandTimeout(TimeSpan.FromSeconds(60));
         this.Database.GetDbConnection().StateChange += (s, e) =>
         {
+            Console.WriteLine($"Database connection state changed from {e.OriginalState} to {e.CurrentState}");
             if (e.CurrentState == System.Data.ConnectionState.Open)
             {
                 var connection = (Npgsql.NpgsqlConnection)s;
