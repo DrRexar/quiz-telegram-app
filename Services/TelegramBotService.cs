@@ -886,7 +886,7 @@ public class TelegramBotService : BackgroundService
                 {
                     InlineKeyboardButton.WithWebApp(
                         "📱 Открыть приложение",
-                        new WebAppInfo { Url = "https://amvera-drrexar-run-quizbott.amvera.io" })
+                        new WebAppInfo { Url = "" })
                 }
             });
 

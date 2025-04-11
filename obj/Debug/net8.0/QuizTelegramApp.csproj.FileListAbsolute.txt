@@ -112,3 +112,4 @@ C:\Users\drrex\OneDrive\Рабочий стол\Практика\QuizTelegramApp
 C:\Users\drrex\OneDrive\Рабочий стол\Практика\QuizTelegramApp\obj\Debug\net8.0\QuizTelegramApp.pdb
 C:\Users\drrex\OneDrive\Рабочий стол\Практика\QuizTelegramApp\obj\Debug\net8.0\QuizTelegramApp.genruntimeconfig.cache
 C:\Users\drrex\OneDrive\Рабочий стол\Практика\QuizTelegramApp\obj\Debug\net8.0\ref\QuizTelegramApp.dll
+C:\Users\drrex\OneDrive\Рабочий стол\Практика\QuizTelegramApp\obj\Debug\net8.0\QuizTelegramApp.sourcelink.json
