@@ -114,8 +114,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 
-// Добавляем простой эндпоинт для проверки работоспособности
-app.MapGet("/health", () => "Healthy");
+// Добавляем эндпоинт для проверки работоспособности с явным указанием статуса 200
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 app.MapBlazorHub();
 app.MapControllers();
