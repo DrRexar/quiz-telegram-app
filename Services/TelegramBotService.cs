@@ -162,23 +162,36 @@ public class TelegramBotService : BackgroundService
 
     private async Task HandleStartCommand(long chatId)
     {
-        var message = "Добро пожаловать в Quiz App! 🎯\n\n" +
-                     "Доступные команды:\n" +
-                     "/quizzes - Список доступных квизов\n" +
-                     "/leaderboard - Таблица лидеров\n" +
-                     "/app - Открыть веб-приложение";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
+        try 
         {
-            new[]
-            {
-                InlineKeyboardButton.WithWebApp(
-                    "📱 Открыть приложение",
-                    new WebAppInfo { Url = "https://quiz-telegram-app-production-753d.up.railway.app" })
-            }
-        });
+            var message = "Добро пожаловать в Quiz App! 🎯\n\n" +
+                         "Доступные команды:\n" +
+                         "/quizzes - Список доступных квизов\n" +
+                         "/leaderboard - Таблица лидеров\n" +
+                         "/app - Открыть веб-приложение";
 
-        await SendMessageWithRetry(chatId, message, keyboard);
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp(
+                        "📱 Открыть приложение",
+                        new WebAppInfo { Url = "https://quiz-telegram-app-production-753d.up.railway.app" })
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("📝 Список квизов", "/quizzes"),
+                    InlineKeyboardButton.WithCallbackData("🏆 Таблица лидеров", "/leaderboard")
+                }
+            });
+
+            await SendMessageWithRetry(chatId, message, keyboard);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при обработке команды /start");
+            await SendMessageWithRetry(chatId, "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.");
+        }
     }
 
     private async Task HandleQuizzesCommand(long chatId)

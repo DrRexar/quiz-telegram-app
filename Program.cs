@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using QuizTelegramApp.Data;
 using QuizTelegramApp.Services;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -51,6 +52,7 @@ builder.Services.AddHttpClient("telegram_bot_client")
         return new TelegramBotClient(options, httpClient);
     });
 
+builder.Services.AddScoped<ITelegramBotService, TelegramBotService>();
 builder.Services.AddHostedService<TelegramBotService>();
 
 var app = builder.Build();
