@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "ymYPicpgJZpr/MkC3JmXWryUOJe3zrhfn3/be/7Np78=",
+  "Hash": "DOyVX1MA2XERvjl58+bdmABC90RGtnVk2R1+4U7vCSM=",
   "Source": "QuizTelegramApp",
   "BasePath": "_content/QuizTelegramApp",
   "Mode": "Default",
@@ -1234,7 +1234,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Fri, 11 Apr 2025 06:13:24 GMT"
+          "Value": "Fri, 11 Apr 2025 07:05:25 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -1279,7 +1279,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Fri, 11 Apr 2025 06:13:24 GMT"
+          "Value": "Fri, 11 Apr 2025 07:05:25 GMT"
         },
         {
           "Name": "Cache-Control",

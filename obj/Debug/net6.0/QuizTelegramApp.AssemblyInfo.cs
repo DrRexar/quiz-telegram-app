@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("QuizTelegramApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c7080a453de9aa954ef63a4abb0e5dcfb6a0c46")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bb277a45234ebc4de99cf7e2751bff8980d828c6")]
 [assembly: System.Reflection.AssemblyProductAttribute("QuizTelegramApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("QuizTelegramApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

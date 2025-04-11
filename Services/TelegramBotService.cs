@@ -190,19 +190,19 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
     public async Task HandleQuizzesCommand(long chatId)
     {
-        try 
+        _logger.LogInformation("Начало обработки команды /quizzes для чата {ChatId}", chatId);
+        
+        try
         {
-            _logger.LogInformation("Начинаем получение списка квизов для пользователя {ChatId}", chatId);
-            
             using var context = _dbContextFactory.CreateDbContext();
-            _logger.LogInformation("Контекст БД создан успешно");
+            _logger.LogInformation("Создан контекст базы данных");
             
             var quizzes = await context.Quizzes
                 .Include(q => q.Questions)
                 .ToListAsync();
             _logger.LogInformation("Получено {Count} квизов из базы данных", quizzes?.Count ?? 0);
             
-            if (!quizzes.Any())
+            if (quizzes == null || !quizzes.Any())
             {
                 _logger.LogInformation("Список квизов пуст, отправляем сообщение пользователю");
                 await SendMessageWithRetry(chatId, "К сожалению, пока нет доступных квизов. Попробуйте добавить квиз через административную панель.");

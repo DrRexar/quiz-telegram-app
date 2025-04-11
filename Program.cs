@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,37 +71,34 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Добавляем тестовые данные при запуске
+// Добавляем тестовый квиз при запуске
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    
-    if (!context.Quizzes.Any())
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    if (!dbContext.Quizzes.Any())
     {
-        var quiz = new Quiz
+        var testQuiz = new Quiz
         {
             Title = "Тестовый квиз",
-            Description = "Это тестовый квиз для проверки функциональности",
+            Description = "Это тестовый квиз для проверки работы приложения",
             Questions = new List<Question>
             {
                 new Question
                 {
-                    Text = "Какой язык программирования мы используем?",
-                    Options = "[\"Java\",\"Python\",\"C#\",\"JavaScript\"]",
-                    CorrectAnswer = "C#",
-                    QuestionOptions = new List<QuestionOption>
-                    {
-                        new QuestionOption { Text = "Java" },
-                        new QuestionOption { Text = "Python" },
-                        new QuestionOption { Text = "C#" },
-                        new QuestionOption { Text = "JavaScript" }
-                    }
+                    Text = "Какая столица России?",
+                    Options = System.Text.Json.JsonSerializer.Serialize(new[] { "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург" }),
+                    CorrectAnswer = "Москва"
+                },
+                new Question
+                {
+                    Text = "Сколько планет в Солнечной системе?",
+                    Options = System.Text.Json.JsonSerializer.Serialize(new[] { "7", "8", "9", "10" }),
+                    CorrectAnswer = "8"
                 }
             }
         };
-        
-        context.Quizzes.Add(quiz);
-        context.SaveChanges();
+        dbContext.Quizzes.Add(testQuiz);
+        dbContext.SaveChanges();
     }
 }
 
@@ -123,16 +121,24 @@ app.MapControllers();
 // Маршрутизация для Telegram webhook
 app.MapPost("/api/webhook", async (HttpContext context) =>
 {
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     var botService = context.RequestServices.GetRequiredService<ITelegramBotService>();
     var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
     
     using var reader = new StreamReader(context.Request.Body);
     var requestBody = await reader.ReadToEndAsync();
+    logger.LogInformation("Получен webhook: {RequestBody}", requestBody);
+    
     var update = JsonConvert.DeserializeObject<Update>(requestBody);
+    logger.LogInformation("Десериализовано обновление: {Update}", JsonConvert.SerializeObject(update));
     
     if (update != null)
     {
         await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+    }
+    else
+    {
+        logger.LogWarning("Не удалось десериализовать обновление");
     }
     
     return Results.Ok();

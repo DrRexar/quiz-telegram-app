@@ -28,13 +28,13 @@
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
       <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"g5jb5lsht8"},{"Name":"integrity","Value":"sha256-TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4="},{"Name":"label","Value":"_content/QuizTelegramApp/index.html"}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"661"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u0022TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4=\u0022"},{"Name":"Last-Modified","Value":"Fri, 11 Apr 2025 06:13:24 GMT"}]]]></ResponseHeaders>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"661"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u0022TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4=\u0022"},{"Name":"Last-Modified","Value":"Fri, 11 Apr 2025 07:05:25 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/QuizTelegramApp/index.html">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4="}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"661"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u0022TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4=\u0022"},{"Name":"Last-Modified","Value":"Fri, 11 Apr 2025 06:13:24 GMT"}]]]></ResponseHeaders>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"661"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u0022TDHz2unSF3zADcUX1xjzuRrzGkrkxVSjM4JvGMUeWu4=\u0022"},{"Name":"Last-Modified","Value":"Fri, 11 Apr 2025 07:05:25 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="_content/QuizTelegramApp/lib/bootstrap/dist/css/bootstrap-grid.bqjiyaj88i.css">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\lib\bootstrap\dist\css\bootstrap-grid.css'))</AssetFile>
