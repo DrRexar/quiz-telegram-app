@@ -112,7 +112,10 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 
-// Добавляем эндпоинт для проверки работоспособности с явным указанием статуса 200
+// Добавляем эндпоинт для корневого пути
+app.MapGet("/", () => Results.Ok(new { status = "healthy" }));
+
+// Добавляем эндпоинт для проверки работоспособности
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 app.MapBlazorHub();
@@ -127,6 +130,9 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
     
     try 
     {
+        logger.LogInformation("Получен webhook запрос от {RemoteIpAddress}", context.Connection.RemoteIpAddress);
+        logger.LogInformation("Headers: {Headers}", string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}")));
+        
         using var reader = new StreamReader(context.Request.Body);
         var requestBody = await reader.ReadToEndAsync();
         logger.LogInformation("Получен webhook: {RequestBody}", requestBody);

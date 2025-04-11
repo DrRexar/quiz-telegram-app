@@ -4,7 +4,7 @@ buildCommand = "dotnet publish -c Release -o out"
 
 [deploy]
 startCommand = "dotnet out/QuizTelegramApp.dll"
-healthcheckPath = "/health"
+healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
