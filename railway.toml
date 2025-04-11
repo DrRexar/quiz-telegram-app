@@ -5,7 +5,7 @@ buildCommand = "dotnet build"
 [deploy]
 startCommand = "dotnet run"
 healthcheckPath = "/"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 

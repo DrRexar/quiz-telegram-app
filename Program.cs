@@ -70,6 +70,6 @@ app.MapControllers();
 app.MapFallbackToPage("/_Host");
 
 // Простой healthcheck endpoint
-app.MapGet("/", () => "OK");
+app.MapGet("/", () => Results.Ok("OK"));
 
 app.Run();
