@@ -57,12 +57,9 @@ builder.Services.AddHttpClient("telegram_bot_client")
     });
 
 // Регистрируем TelegramBotService как IHostedService и ITelegramBotService
-builder.Services.AddHostedService<TelegramBotService>();
-builder.Services.AddSingleton<ITelegramBotService>(sp => 
-{
-    var service = sp.GetRequiredService<TelegramBotService>();
-    return service;
-});
+builder.Services.AddSingleton<TelegramBotService>();
+builder.Services.AddSingleton<ITelegramBotService>(sp => sp.GetRequiredService<TelegramBotService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TelegramBotService>());
 
 // Add health checks
 builder.Services.AddHealthChecks();
