@@ -1,9 +1,9 @@
 [build]
-builder = "nixpacks"
-buildCommand = "dotnet build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "dotnet run"
+startCommand = "dotnet QuizTelegramApp.dll"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
