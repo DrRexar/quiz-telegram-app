@@ -1,0 +1,14 @@
+[build]
+builder = "nixpacks"
+buildCommand = "dotnet build"
+
+[deploy]
+startCommand = "dotnet run"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[deploy.envs]
+ASPNETCORE_ENVIRONMENT = "Production"
+ASPNETCORE_URLS = "http://+:5000" 
