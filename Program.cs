@@ -128,8 +128,17 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
     
     try 
     {
+        logger.LogInformation("=== Начало обработки webhook ===");
         logger.LogInformation("Получен webhook запрос от {RemoteIpAddress}", context.Connection.RemoteIpAddress);
         logger.LogInformation("Headers: {Headers}", string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}")));
+        
+        // Проверяем, что запрос пришел от Telegram
+        var userAgent = context.Request.Headers["User-Agent"].ToString();
+        if (!userAgent.Contains("TelegramBot"))
+        {
+            logger.LogWarning("Получен запрос не от Telegram: {UserAgent}", userAgent);
+            return Results.BadRequest("Unauthorized");
+        }
         
         using var reader = new StreamReader(context.Request.Body);
         var requestBody = await reader.ReadToEndAsync();
@@ -140,7 +149,15 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
         
         if (update != null)
         {
+            logger.LogInformation("Тип обновления: {UpdateType}", update.Type);
+            if (update.Message != null)
+            {
+                logger.LogInformation("Текст сообщения: {MessageText}", update.Message.Text);
+                logger.LogInformation("Chat ID: {ChatId}", update.Message.Chat.Id);
+            }
+            
             await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+            logger.LogInformation("Обновление успешно обработано");
         }
         else
         {
@@ -152,6 +169,7 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
         logger.LogError(ex, "Ошибка при обработке webhook");
     }
     
+    logger.LogInformation("=== Конец обработки webhook ===");
     return Results.Ok();
 });
 
