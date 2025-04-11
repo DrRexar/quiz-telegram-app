@@ -174,7 +174,7 @@ public class TelegramBotService : BackgroundService
             {
                 InlineKeyboardButton.WithWebApp(
                     "📱 Открыть приложение",
-                    new WebAppInfo { Url = "https://your-mini-app-url.com" })
+                    new WebAppInfo { Url = "https://quiz-telegram-app-production-753d.up.railway.app" })
             }
         });
 
@@ -886,7 +886,7 @@ public class TelegramBotService : BackgroundService
                 {
                     InlineKeyboardButton.WithWebApp(
                         "📱 Открыть приложение",
-                        new WebAppInfo { Url = "" })
+                        new WebAppInfo { Url = "https://quiz-telegram-app-production-753d.up.railway.app" })
                 }
             });
 
