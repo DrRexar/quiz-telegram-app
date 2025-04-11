@@ -1,0 +1,63 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using QuizTelegramApp.Models
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+@if (IsVisible && Quiz != null)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(Quiz.Id == 0 ? "Создание квиза" : "Редактирование квиза")</h5>
+                    <button type="button" class="btn-close" @onclick="() => IsVisibleChanged.InvokeAsync(false)"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@Quiz" OnValidSubmit="HandleSave">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Название</label>
+                            <InputText @bind-Value="Quiz.Title" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Описание</label>
+                            <InputTextArea @bind-Value="Quiz.Description" class="form-control" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="() => IsVisibleChanged.InvokeAsync(false)">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public Quiz? Quiz { get; set; }
+
+    [Parameter]
+    public EventCallback<Quiz> OnSave { get; set; }
+
+    private async Task HandleSave()
+    {
+        if (Quiz != null)
+        {
+            await OnSave.InvokeAsync(Quiz);
+            await IsVisibleChanged.InvokeAsync(false);
+        }
+    }
+} 

@@ -1,0 +1,166 @@
+@page "/"
+@using Microsoft.EntityFrameworkCore
+@using QuizTelegramApp.Data
+@using QuizTelegramApp.Models
+@inject ApplicationDbContext Context
+@inject HttpClient Http
+
+<PageTitle>Quiz App - Главная</PageTitle>
+
+<h1>Добро пожаловать в Quiz App!</h1>
+
+<p>Это приложение для создания и прохождения квизов через Telegram.</p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Для пользователей</h5>
+                <p class="card-text">Найдите нашего бота в Telegram и начните проходить квизы прямо сейчас!</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Для администраторов</h5>
+                <p class="card-text">Перейдите в админ панель для управления квизами и просмотра статистики.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <h3>Доступные квизы</h3>
+            @if (quizzes == null)
+            {
+                <p>Загрузка...</p>
+            }
+            else if (!quizzes.Any())
+            {
+                <p>Пока нет доступных квизов.</p>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var quiz in quizzes)
+                    {
+                        <div class="col-md-4 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">@(quiz.Title ?? "Без названия")</h5>
+                                    @if (!string.IsNullOrEmpty(quiz.Description))
+                                    {
+                                        <p class="card-text">@quiz.Description</p>
+                                    }
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            Вопросов: @(quiz.Questions?.Count ?? 0)
+                                        </small>
+                                    </p>
+                                    <a href="/quiz/@quiz.Id" class="btn btn-primary">Начать квиз</a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <div class="col-md-4">
+            <h3>Топ-10 результатов</h3>
+            @if (topResults == null)
+            {
+                <p>Загрузка...</p>
+            }
+            else if (!topResults.Any())
+            {
+                <p>Пока нет результатов.</p>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var result in topResults)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">@(result.User?.Username ?? "Аноним")</h6>
+                                <small>@result.Score баллов</small>
+                            </div>
+                            <small class="text-muted">@(result.Quiz?.Title ?? "Без названия")</small>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<h3>Последние результаты</h3>
+
+@if (results == null)
+{
+    <div class="alert alert-info">Загрузка...</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Пользователь</th>
+                    <th>Квиз</th>
+                    <th>Результат</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var result in results)
+                {
+                    <tr>
+                        <td>@(result.User?.Username ?? "Аноним")</td>
+                        <td>@(result.Quiz?.Title ?? "Без названия")</td>
+                        <td>@result.Score из @(result.Quiz?.Questions?.Count ?? 0)</td>
+                        <td>@result.CompletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Quiz> quizzes = new();
+    private List<QuizResult>? topResults;
+    private List<QuizResult>? results;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            quizzes = await Context.Quizzes
+                .Include(q => q.Questions)
+                .OrderByDescending(q => q.CreatedAt)
+                .ToListAsync();
+
+            topResults = await Context.QuizResults
+                .Include(r => r.User)
+                .Include(r => r.Quiz)
+                .OrderByDescending(r => r.Score)
+                .Take(10)
+                .ToListAsync();
+
+            results = await Context.QuizResults
+                .Include(r => r.User)
+                .Include(r => r.Quiz)
+                .OrderByDescending(r => r.CompletedAt)
+                .Take(10)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при загрузке квизов: {ex.Message}");
+        }
+    }
+} 

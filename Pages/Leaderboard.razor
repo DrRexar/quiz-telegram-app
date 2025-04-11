@@ -1,0 +1,63 @@
+@page "/leaderboard"
+@using QuizTelegramApp.Models
+@using QuizTelegramApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Context
+@inject HttpClient Http
+
+<h3>Таблица лидеров</h3>
+
+@if (results == null)
+{
+    <p>Загрузка...</p>
+}
+else if (!results.Any())
+{
+    <p>Пока нет результатов</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Место</th>
+                    <th>Пользователь</th>
+                    <th>Очки</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var result in results.OrderByDescending(r => r.Score).Take(10))
+                {
+                    <tr>
+                        <td>@(results.OrderByDescending(r => r.Score).ToList().IndexOf(result) + 1)</td>
+                        <td>@(result.User?.Username ?? "Аноним")</td>
+                        <td>@result.Score</td>
+                        <td>@result.CompletedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<QuizResult> results = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            results = await Context.QuizResults
+                .Include(r => r.User)
+                .OrderByDescending(r => r.Score)
+                .Take(10)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при загрузке таблицы лидеров: {ex.Message}");
+        }
+    }
+} 

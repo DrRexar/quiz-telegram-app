@@ -1,0 +1,73 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using QuizTelegramApp.Models
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<div class="modal fade @(IsVisible ? "show" : "")" style="display: @(IsVisible ? "block" : "none")" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(Question.Id == 0 ? "Новый вопрос" : "Редактировать вопрос")</h5>
+                <button type="button" class="btn-close" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="questionText" class="form-label">Текст вопроса</label>
+                    <input type="text" class="form-control" id="questionText" @bind="Question.Text" />
+                </div>
+                <div class="mb-3">
+                    <label for="correctAnswer" class="form-label">Правильный ответ</label>
+                    <input type="text" class="form-control" id="correctAnswer" @bind="Question.CorrectAnswer" />
+                </div>
+                <div class="mb-3">
+                    <label for="points" class="form-label">Баллы</label>
+                    <input type="number" class="form-control" id="points" @bind="Question.Points" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Варианты ответов</label>
+                    @foreach (var option in Question.QuestionOptions)
+                    {
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" @bind="option.Text" />
+                            <button class="btn btn-outline-danger" @onclick="@(() => RemoveOption(option))">Удалить</button>
+                        </div>
+                    }
+                    <button class="btn btn-outline-primary" @onclick="AddOption">Добавить вариант</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="OnClose">Отмена</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveQuestion">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Question Question { get; set; } = new();
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<Question> OnSave { get; set; }
+
+    private void AddOption()
+    {
+        Question.QuestionOptions.Add(new QuestionOption());
+    }
+
+    private void RemoveOption(QuestionOption option)
+    {
+        Question.QuestionOptions.Remove(option);
+    }
+
+    private async Task SaveQuestion()
+    {
+        await OnSave.InvokeAsync(Question);
+    }
+} 
