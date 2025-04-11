@@ -114,8 +114,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 
-// Добавляем маршрутизацию для healthcheck
-app.MapHealthChecks("/health");
+// Добавляем простой эндпоинт для проверки работоспособности
+app.MapGet("/health", () => "Healthy");
 
 app.MapBlazorHub();
 app.MapControllers();
