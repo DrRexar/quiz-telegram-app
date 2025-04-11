@@ -67,9 +67,26 @@ app.UseRouting();
 
 app.MapBlazorHub();
 app.MapControllers();
-app.MapFallbackToPage("/_Host");
 
-// Простой healthcheck endpoint
-app.MapGet("/", () => Results.Ok("OK"));
+// Маршрутизация для Telegram webhook
+app.MapPost("/api/webhook", async (HttpContext context) =>
+{
+    var botService = context.RequestServices.GetRequiredService<ITelegramBotService>();
+    var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
+    
+    using var reader = new StreamReader(context.Request.Body);
+    var requestBody = await reader.ReadToEndAsync();
+    var update = JsonConvert.DeserializeObject<Update>(requestBody);
+    
+    if (update != null)
+    {
+        await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+    }
+    
+    return Results.Ok();
+});
+
+// Маршрутизация для веб-приложения
+app.MapFallbackToPage("/_Host");
 
 app.Run();
