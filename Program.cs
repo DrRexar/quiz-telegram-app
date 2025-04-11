@@ -8,6 +8,7 @@ using Telegram.Bot.Types.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +65,9 @@ var descriptor = new ServiceDescriptor(
 builder.Services.AddHostedService<TelegramBotService>();
 builder.Services.Add(descriptor);
 
+// Add health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 // Добавляем тестовые данные при запуске
@@ -109,6 +113,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+
+// Добавляем маршрутизацию для healthcheck
+app.MapHealthChecks("/health");
 
 app.MapBlazorHub();
 app.MapControllers();
