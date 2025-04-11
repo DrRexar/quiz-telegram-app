@@ -68,8 +68,7 @@ builder.Services.AddHostedService<TelegramBotService>();
 builder.Services.Add(descriptor);
 
 // Add health checks
-builder.Services.AddHealthChecks()
-    .AddCheck<DatabaseHealthCheck>("database_health_check");
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -116,27 +115,6 @@ app.UseRouting();
 
 // Добавляем эндпоинт для корневого пути
 app.MapGet("/", () => Results.Ok(new { status = "healthy" }));
-
-// Добавляем эндпоинт для проверки работоспособности
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        var result = new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description
-            })
-        };
-
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(result);
-    }
-});
 
 app.MapBlazorHub();
 app.MapControllers();

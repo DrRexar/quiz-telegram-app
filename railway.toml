@@ -1,10 +1,10 @@
 [build]
-builder = "nixpacks"
-buildCommand = "dotnet publish -c Release -o out"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "dotnet out/QuizTelegramApp.dll"
-healthcheckPath = "/health"
+startCommand = "dotnet QuizTelegramApp.dll"
+healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
