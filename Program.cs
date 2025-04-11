@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QuizTelegramApp.Data;
 using QuizTelegramApp.Services;
+using QuizTelegramApp.Models;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -64,6 +65,40 @@ builder.Services.AddHostedService<TelegramBotService>();
 builder.Services.Add(descriptor);
 
 var app = builder.Build();
+
+// Добавляем тестовые данные при запуске
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    
+    if (!context.Quizzes.Any())
+    {
+        var quiz = new Quiz
+        {
+            Title = "Тестовый квиз",
+            Description = "Это тестовый квиз для проверки функциональности",
+            Questions = new List<Question>
+            {
+                new Question
+                {
+                    Text = "Какой язык программирования мы используем?",
+                    Options = "[\"Java\",\"Python\",\"C#\",\"JavaScript\"]",
+                    CorrectAnswer = "C#",
+                    QuestionOptions = new List<QuestionOption>
+                    {
+                        new QuestionOption { Text = "Java" },
+                        new QuestionOption { Text = "Python" },
+                        new QuestionOption { Text = "C#" },
+                        new QuestionOption { Text = "JavaScript" }
+                    }
+                }
+            }
+        };
+        
+        context.Quizzes.Add(quiz);
+        context.SaveChanges();
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

@@ -192,16 +192,24 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
     {
         try 
         {
+            _logger.LogInformation("Начинаем получение списка квизов для пользователя {ChatId}", chatId);
+            
             using var context = CreateDbContext();
+            _logger.LogInformation("Контекст БД создан успешно");
+            
             var quizzes = await context.Quizzes.ToListAsync();
+            _logger.LogInformation("Получено {Count} квизов из базы данных", quizzes?.Count ?? 0);
             
             if (!quizzes.Any())
             {
-                await SendMessageWithRetry(chatId, "К сожалению, пока нет доступных квизов.");
+                _logger.LogInformation("Список квизов пуст, отправляем сообщение пользователю");
+                await SendMessageWithRetry(chatId, "К сожалению, пока нет доступных квизов. Попробуйте добавить квиз через административную панель.");
                 return;
             }
 
             var user = await context.Users.FirstOrDefaultAsync(u => u.TelegramId == chatId);
+            _logger.LogInformation("Поиск пользователя с TelegramId {ChatId}: {Found}", chatId, user != null);
+            
             var completedQuizIds = new HashSet<int>();
             
             if (user != null)
@@ -210,6 +218,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                     .Where(r => r.UserId == user.Id)
                     .Select(r => r.QuizId)
                     .ToListAsync());
+                _logger.LogInformation("Найдено {Count} завершенных квизов для пользователя", completedQuizIds.Count);
             }
 
             var quizButtons = quizzes.Select(q => new[]
@@ -227,6 +236,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             var keyboard = new InlineKeyboardMarkup(quizButtons);
 
+            _logger.LogInformation("Отправляем список квизов пользователю");
             await SendMessageWithRetry(
                 chatId,
                 "Выберите квиз:\n(✅ - пройденные квизы)",
@@ -234,7 +244,11 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке команды /quizzes");
+            _logger.LogError(ex, "Ошибка при получении списка квизов: {Error}", ex.Message);
+            if (ex.InnerException != null)
+            {
+                _logger.LogError("Inner Exception: {Error}", ex.InnerException.Message);
+            }
             await SendMessageWithRetry(chatId, "Произошла ошибка при получении списка квизов. Пожалуйста, попробуйте позже.");
         }
     }
