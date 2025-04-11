@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Настраиваем порт из переменной окружения
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
@@ -49,28 +53,6 @@ builder.Services.AddHttpClient("telegram_bot_client")
 
 builder.Services.AddHostedService<TelegramBotService>();
 
-// Добавляем CORS
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
-// Настраиваем Kestrel для прослушивания всех интерфейсов
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.Listen(System.Net.IPAddress.Any, 5295);
-});
-
-// Добавляем логирование
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -80,40 +62,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
-
-// Включаем CORS
-app.UseCors();
-
 app.UseRouting();
 
 app.MapBlazorHub();
 app.MapControllers();
 app.MapFallbackToPage("/_Host");
 
-// Добавляем endpoint для healthcheck
-app.MapGet("/health", () => Results.Ok("Healthy"));
+// Простой healthcheck endpoint
+app.MapGet("/", () => "OK");
 
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("=== Инициализация базы данных ===");
-
-// Инициализация базы данных
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        context.Database.EnsureCreated();
-        logger.LogInformation("База данных успешно создана или уже существует");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Ошибка при инициализации базы данных");
-        throw;
-    }
-}
-
-logger.LogInformation("=== Приложение готово к запуску ===");
 app.Run();
