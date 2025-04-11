@@ -1,0 +1,14 @@
+{
+  "name": "quiz-telegram-app",
+  "description": "Telegram bot for quizzes",
+  "env": {
+    "ASPNETCORE_ENVIRONMENT": {
+      "value": "Production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/dotnet"
+    }
+  ]
+} 

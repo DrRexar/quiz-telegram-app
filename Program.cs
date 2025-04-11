@@ -104,6 +104,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Используем порт из переменной окружения Heroku
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
 app.UseStaticFiles();
 app.UseRouting();
 
@@ -125,14 +129,6 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
         logger.LogInformation("=== Начало обработки webhook ===");
         logger.LogInformation("Получен webhook запрос от {RemoteIpAddress}", context.Connection.RemoteIpAddress);
         logger.LogInformation("Headers: {Headers}", string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}")));
-        
-        // Проверяем, что запрос пришел от Telegram
-        var userAgent = context.Request.Headers["User-Agent"].ToString();
-        if (!userAgent.Contains("TelegramBot"))
-        {
-            logger.LogWarning("Получен запрос не от Telegram: {UserAgent}", userAgent);
-            return Results.BadRequest("Unauthorized");
-        }
         
         using var reader = new StreamReader(context.Request.Body);
         var requestBody = await reader.ReadToEndAsync();
