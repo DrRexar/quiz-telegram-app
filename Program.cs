@@ -125,23 +125,49 @@ app.MapPost("/api/webhook", async (HttpContext context) =>
     var botService = context.RequestServices.GetRequiredService<ITelegramBotService>();
     var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
     
-    using var reader = new StreamReader(context.Request.Body);
-    var requestBody = await reader.ReadToEndAsync();
-    logger.LogInformation("Получен webhook: {RequestBody}", requestBody);
-    
-    var update = JsonConvert.DeserializeObject<Update>(requestBody);
-    logger.LogInformation("Десериализовано обновление: {Update}", JsonConvert.SerializeObject(update));
-    
-    if (update != null)
+    try 
     {
-        await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+        using var reader = new StreamReader(context.Request.Body);
+        var requestBody = await reader.ReadToEndAsync();
+        logger.LogInformation("Получен webhook: {RequestBody}", requestBody);
+        
+        var update = JsonConvert.DeserializeObject<Update>(requestBody);
+        logger.LogInformation("Десериализовано обновление: {Update}", JsonConvert.SerializeObject(update));
+        
+        if (update != null)
+        {
+            await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+        }
+        else
+        {
+            logger.LogWarning("Не удалось десериализовать обновление");
+        }
     }
-    else
+    catch (Exception ex)
     {
-        logger.LogWarning("Не удалось десериализовать обновление");
+        logger.LogError(ex, "Ошибка при обработке webhook");
     }
     
     return Results.Ok();
+});
+
+// Эндпоинт для проверки webhook
+app.MapGet("/api/webhook-info", async (HttpContext context) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
+    
+    try
+    {
+        var webhookInfo = await botClient.GetWebhookInfoAsync();
+        logger.LogInformation("Информация о webhook: {WebhookInfo}", JsonConvert.SerializeObject(webhookInfo));
+        return Results.Json(webhookInfo);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Ошибка при получении информации о webhook");
+        return Results.Problem("Ошибка при получении информации о webhook");
+    }
 });
 
 // Маршрутизация для веб-приложения

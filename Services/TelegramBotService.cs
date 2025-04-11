@@ -158,11 +158,15 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
     {
         try 
         {
+            _logger.LogInformation("Начало обработки команды /start для чата {ChatId}", chatId);
+            
             var message = "Добро пожаловать в Quiz App! 🎯\n\n" +
                          "Доступные команды:\n" +
                          "/quizzes - Список доступных квизов\n" +
                          "/leaderboard - Таблица лидеров\n" +
                          "/app - Открыть веб-приложение";
+
+            _logger.LogInformation("Подготовлено приветственное сообщение для чата {ChatId}", chatId);
 
             var keyboard = new InlineKeyboardMarkup(new[]
             {
@@ -179,11 +183,13 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 }
             });
 
+            _logger.LogInformation("Подготовлена клавиатура для чата {ChatId}", chatId);
             await SendMessageWithRetry(chatId, message, keyboard);
+            _logger.LogInformation("Сообщение успешно отправлено в чат {ChatId}", chatId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке команды /start");
+            _logger.LogError(ex, "Ошибка при обработке команды /start для чата {ChatId}", chatId);
             await SendMessageWithRetry(chatId, "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.");
         }
     }
