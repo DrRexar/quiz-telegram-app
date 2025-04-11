@@ -51,11 +51,11 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "dependencies": {
-            "Microsoft.AspNetCore.Components.Web": {
+            "Microsoft.AspNetCore.Components.WebAssembly": {
               "target": "Package",
               "version": "[6.0.0, )"
             },
-            "Microsoft.AspNetCore.Components.WebAssembly": {
+            "Microsoft.AspNetCore.Components.WebAssembly.DevServer": {
               "target": "Package",
               "version": "[6.0.0, )"
             },

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "C1cQucSVscM=",
+  "dgSpecHash": "rSXQf6auZ1Q=",
   "success": true,
   "projectFilePath": "C:\\Users\\drrex\\OneDrive\\Рабочий стол\\Практика\\QuizTelegramApp\\QuizTelegramApp.csproj",
   "expectedPackageFiles": [
@@ -11,6 +11,7 @@
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.components.forms\\6.0.0\\microsoft.aspnetcore.components.forms.6.0.0.nupkg.sha512",
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.components.web\\6.0.0\\microsoft.aspnetcore.components.web.6.0.0.nupkg.sha512",
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.components.webassembly\\6.0.0\\microsoft.aspnetcore.components.webassembly.6.0.0.nupkg.sha512",
+    "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.components.webassembly.devserver\\6.0.0\\microsoft.aspnetcore.components.webassembly.devserver.6.0.0.nupkg.sha512",
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.jsonpatch\\6.0.0\\microsoft.aspnetcore.jsonpatch.6.0.0.nupkg.sha512",
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.metadata\\6.0.0\\microsoft.aspnetcore.metadata.6.0.0.nupkg.sha512",
     "C:\\Users\\drrex\\.nuget\\packages\\microsoft.aspnetcore.mvc.newtonsoftjson\\6.0.0\\microsoft.aspnetcore.mvc.newtonsoftjson.6.0.0.nupkg.sha512",
