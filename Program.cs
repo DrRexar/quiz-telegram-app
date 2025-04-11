@@ -77,10 +77,10 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // app.UseHsts();
+    app.UseHsts();
 }
 
-// app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 // Включаем CORS
@@ -89,8 +89,11 @@ app.UseCors();
 app.UseRouting();
 
 app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
 app.MapControllers();
+app.MapFallbackToPage("/_Host");
+
+// Добавляем endpoint для healthcheck
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("=== Инициализация базы данных ===");
