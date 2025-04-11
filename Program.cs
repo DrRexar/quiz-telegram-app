@@ -52,8 +52,16 @@ builder.Services.AddHttpClient("telegram_bot_client")
         return new TelegramBotClient(options, httpClient);
     });
 
-builder.Services.AddScoped<ITelegramBotService, TelegramBotService>();
+// Регистрируем TelegramBotService как IHostedService и ITelegramBotService
+var descriptor = new ServiceDescriptor(
+    typeof(ITelegramBotService),
+    sp => sp.GetRequiredService<IHostedService>() as TelegramBotService ?? 
+          throw new InvalidOperationException("Failed to resolve TelegramBotService"),
+    ServiceLifetime.Singleton
+);
+
 builder.Services.AddHostedService<TelegramBotService>();
+builder.Services.Add(descriptor);
 
 var app = builder.Build();
 

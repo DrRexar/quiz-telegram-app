@@ -11,7 +11,7 @@ using Telegram.Bot.Exceptions;
 
 namespace QuizTelegramApp.Services;
 
-public class TelegramBotService : BackgroundService
+public class TelegramBotService : BackgroundService, ITelegramBotService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IDbContextFactory _dbContextFactory;
@@ -46,15 +46,7 @@ public class TelegramBotService : BackgroundService
             var me = await _botClient.GetMeAsync(stoppingToken);
             _logger.LogInformation("Бот {BotName} успешно запущен", me.Username);
 
-            // Удаляем webhook перед использованием getUpdates
-            await _botClient.DeleteWebhookAsync(cancellationToken: stoppingToken);
-
-            _botClient.StartReceiving(
-                updateHandler: HandleUpdateAsync,
-                pollingErrorHandler: HandlePollingErrorAsync,
-                cancellationToken: stoppingToken
-            );
-
+            // Ждем отмены для поддержания сервиса активным
             await Task.Delay(-1, stoppingToken);
         }
         catch (Exception ex)
@@ -64,10 +56,12 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         try
         {
+            _logger.LogInformation("Получено обновление типа: {UpdateType}", update.Type);
+
             if (update.CallbackQuery != null)
             {
                 await HandleCallbackQueryAsync(update.CallbackQuery);
@@ -122,7 +116,7 @@ public class TelegramBotService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке обновления");
+            _logger.LogError(ex, "Ошибка при обработке обновления: {Error}", ex.Message);
             if (update.Message?.Chat.Id != null)
             {
                 await SendMessageWithRetry(update.Message.Chat.Id, "Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.");
@@ -160,7 +154,7 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleStartCommand(long chatId)
+    public async Task HandleStartCommand(long chatId)
     {
         try 
         {
@@ -194,7 +188,7 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleQuizzesCommand(long chatId)
+    public async Task HandleQuizzesCommand(long chatId)
     {
         try 
         {
@@ -245,7 +239,7 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleLeaderboardCommand(long chatId)
+    public async Task HandleLeaderboardCommand(long chatId)
     {
         try
         {
@@ -332,7 +326,7 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleQuizSelection(long chatId, int quizId)
+    public async Task HandleQuizSelection(long chatId, int quizId)
     {
         try
         {
@@ -381,7 +375,7 @@ public class TelegramBotService : BackgroundService
         }
     }
 
-    private async Task HandleAnswer(long chatId, int quizId, int questionId, string answer, string username)
+    public async Task HandleAnswer(long chatId, int quizId, int questionId, string answer, string username)
     {
         try
         {
