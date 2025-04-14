@@ -44,7 +44,7 @@ services:
     container_name: quiz-nginx
     restart: unless-stopped
     ports:
-      - "5295:5295"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./certbot/conf:/etc/letsencrypt
