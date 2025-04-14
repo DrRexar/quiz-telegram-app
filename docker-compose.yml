@@ -1,14 +1,28 @@
 version: '3'
 
 services:
+  db:
+    image: postgres:latest
+    container_name: quiz-db
+    environment:
+      - POSTGRES_DB=quizapp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=12345
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
   quiz-app:
     build: .
     container_name: quiz-app
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - TelegramBot__Token=${TELEGRAM_BOT_TOKEN}
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - TelegramBot__Token=${7711998131:AAEIRi04JmNoX-X-ptXUjz8HByOlD5ugm8I}
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=quizapp;Username=postgres;Password=12345
+    depends_on:
+      - db
     networks:
       - app-network
     healthcheck:
@@ -55,4 +69,7 @@ services:
 
 networks:
   app-network:
-    driver: bridge 
+    driver: bridge
+
+volumes:
+  postgres_data: 
