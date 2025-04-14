@@ -33,7 +33,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 
 // Регистрация сервисов
-builder.Services.AddScoped<TelegramBotService>();
+builder.Services.AddScoped<ITelegramBotService, TelegramBotService>();
+builder.Services.AddScoped<IDbContextFactory, DbContextFactory>();
+
+// Настройка HttpClient для Telegram API
 builder.Services.AddHttpClient("telegram_bot_client")
     .AddTypedClient<ITelegramBotClient>((httpClient, sp) =>
     {
