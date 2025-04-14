@@ -104,10 +104,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Используем порт из переменной окружения Heroku
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://0.0.0.0:{port}");
-
 app.UseStaticFiles();
 app.UseRouting();
 
@@ -184,5 +180,8 @@ app.MapGet("/api/webhook-info", async (HttpContext context) =>
 
 // Маршрутизация для веб-приложения
 app.MapFallbackToPage("/_Host");
+
+// Используем порт из переменной окружения
+app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Run();
