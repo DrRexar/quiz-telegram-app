@@ -1,53 +1,39 @@
 using Microsoft.EntityFrameworkCore;
 using QuizTelegramApp.Data;
 using QuizTelegramApp.Services;
-using QuizTelegramApp.Models;
+using System.Text.Json;
+using Microsoft.OpenApi.Models;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Text.Json;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Настраиваем порт из переменной окружения
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-
-// Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
-    {
-        options.SerializerSettings.ContractResolver = new DefaultContractResolver
-        {
-            NamingStrategy = new DefaultNamingStrategy()
-        };
-        options.SerializerSettings.StringEscapeHandling = StringEscapeHandling.Default;
-        options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
-    });
-
-// Configure database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Регистрируем DbContextOptions как singleton
-builder.Services.AddSingleton<DbContextOptions<ApplicationDbContext>>(sp =>
+// Добавляем сервисы в контейнер
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
 {
-    var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-    optionsBuilder.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    return optionsBuilder.Options;
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Quiz Telegram Bot API", Version = "v1" });
 });
 
-// Регистрируем фабрику как singleton
-builder.Services.AddSingleton<IDbContextFactory, DbContextFactory>();
+// Настройка логирования
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
-// Configure Telegram bot
+// Настройка базы данных
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.CommandTimeout(60);
+    });
+});
+
+// Регистрация сервисов
+builder.Services.AddScoped<TelegramBotService>();
 builder.Services.AddHttpClient("telegram_bot_client")
     .AddTypedClient<ITelegramBotClient>((httpClient, sp) =>
     {
@@ -56,132 +42,103 @@ builder.Services.AddHttpClient("telegram_bot_client")
         return new TelegramBotClient(options, httpClient);
     });
 
-// Регистрируем TelegramBotService как IHostedService и ITelegramBotService
-builder.Services.AddSingleton<TelegramBotService>();
-builder.Services.AddSingleton<ITelegramBotService>(sp => sp.GetRequiredService<TelegramBotService>());
-builder.Services.AddHostedService(sp => sp.GetRequiredService<TelegramBotService>());
-
-// Add health checks
-builder.Services.AddHealthChecks();
+// Настройка CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
 
-// Добавляем тестовый квиз при запуске
-using (var scope = app.Services.CreateScope())
+// Настройка конфигурации
+var configuration = app.Services.GetRequiredService<IConfiguration>();
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+// Настройка middleware
+if (app.Environment.IsDevelopment())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (!dbContext.Quizzes.Any())
-    {
-        var testQuiz = new Quiz
-        {
-            Title = "Тестовый квиз",
-            Description = "Это тестовый квиз для проверки работы приложения",
-            Questions = new List<Question>
-            {
-                new Question
-                {
-                    Text = "Какая столица России?",
-                    Options = System.Text.Json.JsonSerializer.Serialize(new[] { "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург" }),
-                    CorrectAnswer = "Москва"
-                },
-                new Question
-                {
-                    Text = "Сколько планет в Солнечной системе?",
-                    Options = System.Text.Json.JsonSerializer.Serialize(new[] { "7", "8", "9", "10" }),
-                    CorrectAnswer = "8"
-                }
-            }
-        };
-        dbContext.Quizzes.Add(testQuiz);
-        dbContext.SaveChanges();
-    }
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
-
-app.UseStaticFiles();
-app.UseRouting();
-
-// Добавляем эндпоинт для корневого пути
-app.MapGet("/", () => Results.Ok(new { status = "healthy" }));
-
-app.MapBlazorHub();
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+app.UseAuthorization();
 app.MapControllers();
 
-// Маршрутизация для Telegram webhook
-app.MapPost("/api/webhook", async (HttpContext context) =>
+// Настройка обработки вебхуков
+app.MapPost("/api/webhook", async (HttpContext context, TelegramBotService botService, ITelegramBotClient botClient) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    var botService = context.RequestServices.GetRequiredService<ITelegramBotService>();
-    var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
-    
-    try 
-    {
-        logger.LogInformation("=== Начало обработки webhook ===");
-        logger.LogInformation("Получен webhook запрос от {RemoteIpAddress}", context.Connection.RemoteIpAddress);
-        logger.LogInformation("Headers: {Headers}", string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}")));
-        
-        using var reader = new StreamReader(context.Request.Body);
-        var requestBody = await reader.ReadToEndAsync();
-        logger.LogInformation("Получен webhook: {RequestBody}", requestBody);
-        
-        var update = JsonConvert.DeserializeObject<Update>(requestBody);
-        logger.LogInformation("Десериализовано обновление: {Update}", JsonConvert.SerializeObject(update));
-        
-        if (update != null)
-        {
-            logger.LogInformation("Тип обновления: {UpdateType}", update.Type);
-            if (update.Message != null)
-            {
-                logger.LogInformation("Текст сообщения: {MessageText}", update.Message.Text);
-                logger.LogInformation("Chat ID: {ChatId}", update.Message.Chat.Id);
-            }
-            
-            await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
-            logger.LogInformation("Обновление успешно обработано");
-        }
-        else
-        {
-            logger.LogWarning("Не удалось десериализовать обновление");
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Ошибка при обработке webhook");
-    }
-    
-    logger.LogInformation("=== Конец обработки webhook ===");
-    return Results.Ok();
-});
-
-// Эндпоинт для проверки webhook
-app.MapGet("/api/webhook-info", async (HttpContext context) =>
-{
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
     
     try
     {
-        var webhookInfo = await botClient.GetWebhookInfoAsync();
-        logger.LogInformation("Информация о webhook: {WebhookInfo}", JsonConvert.SerializeObject(webhookInfo));
-        return Results.Json(webhookInfo);
+        logger.LogInformation("=== Начало обработки вебхука ===");
+        logger.LogInformation("Remote IP: {RemoteIpAddress}", context.Connection.RemoteIpAddress);
+        logger.LogInformation("Headers: {Headers}", context.Request.Headers);
+
+        // Проверяем, что запрос пришел от Telegram
+        var userAgent = context.Request.Headers["User-Agent"].ToString();
+        if (!userAgent.Contains("TelegramBot"))
+        {
+            logger.LogWarning("Получен запрос не от Telegram: {UserAgent}", userAgent);
+            return Results.BadRequest("Unauthorized");
+        }
+
+        // Читаем тело запроса
+        using var reader = new StreamReader(context.Request.Body);
+        var body = await reader.ReadToEndAsync();
+        logger.LogInformation("Request body: {Body}", body);
+
+        // Десериализуем обновление
+        var update = JsonSerializer.Deserialize<Update>(body);
+        if (update == null)
+        {
+            logger.LogWarning("Не удалось десериализовать обновление");
+            return Results.BadRequest("Invalid update");
+        }
+
+        logger.LogInformation("Тип обновления: {UpdateType}", update.Type);
+        if (update.Message != null)
+        {
+            logger.LogInformation("Сообщение от: {FromId}, Текст: {Text}", 
+                update.Message.From?.Id, update.Message.Text);
+        }
+
+        // Обрабатываем обновление
+        await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
+
+        logger.LogInformation("=== Успешная обработка вебхука ===");
+        return Results.Ok();
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Ошибка при получении информации о webhook");
-        return Results.Problem("Ошибка при получении информации о webhook");
+        logger.LogError(ex, "Ошибка при обработке вебхука");
+        return Results.Problem("Internal server error");
     }
 });
 
-// Маршрутизация для веб-приложения
-app.MapFallbackToPage("/_Host");
+// Настройка базы данных
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        context.Database.Migrate();
+        logger.LogInformation("База данных успешно мигрирована");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Ошибка при миграции базы данных");
+    }
+}
 
-// Используем порт из переменной окружения
-app.Urls.Add($"http://0.0.0.0:{port}");
-
+// Запуск приложения
+logger.LogInformation("Запуск приложения...");
 app.Run();
