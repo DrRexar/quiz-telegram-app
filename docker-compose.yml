@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - TelegramBot__Token=${7711998131:AAEIRi04JmNoX-X-ptXUjz8HByOlD5ugm8I}
+      - TelegramBot__Token=7711998131:AAEIRi04JmNoX-X-ptXUjz8HByOlD5ugm8I
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=quizapp;Username=postgres;Password=12345
     depends_on:
       - db
