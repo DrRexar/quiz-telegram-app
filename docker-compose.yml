@@ -45,8 +45,11 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - quiz-app
     networks:
@@ -64,6 +67,15 @@ services:
         reservations:
           cpus: '0.10'
           memory: 128M
+
+  certbot:
+    image: certbot/certbot
+    container_name: quiz-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    networks:
+      - app-network
 
 networks:
   app-network:
