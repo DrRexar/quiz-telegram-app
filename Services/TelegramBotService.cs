@@ -58,98 +58,66 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
     public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
+        _logger.LogInformation($"Получено обновление типа: {update.Type}");
+        
         try
         {
-            _logger.LogInformation("Получено обновление типа: {UpdateType}", update.Type);
-
-            if (update.CallbackQuery != null)
-            {
-                await HandleCallbackQueryAsync(update.CallbackQuery);
+            if (update.Message?.Text is not { } messageText)
                 return;
-            }
 
-            if (update.Message?.Text == null)
-            {
-                _logger.LogWarning("Получено обновление без текста сообщения");
-                return;
-            }
+            _logger.LogInformation($"Обработка сообщения: {messageText}");
 
             var chatId = update.Message.Chat.Id;
-            var messageText = update.Message.Text;
+            var username = update.Message.From?.Username ?? "неизвестный пользователь";
 
-            _logger.LogInformation("Обработка сообщения: {Message} от пользователя {UserId}", messageText, chatId);
+            _logger.LogInformation($"Сообщение от пользователя {username} (ID: {chatId})");
 
-            switch (messageText)
+            if (messageText.StartsWith("/"))
             {
-                case "/start":
-                    await HandleStartCommand(chatId);
-                    break;
-
-                case "/quizzes":
-                    await HandleQuizzesCommand(chatId);
-                    break;
-
-                case "/leaderboard":
-                    await HandleLeaderboardCommand(chatId);
-                    break;
-
-                case "/app":
-                    await HandleAppCommand(chatId);
-                    break;
-
-                default:
-                    if (messageText.StartsWith("/quiz_"))
-                    {
-                        var quizId = int.Parse(messageText.Split('_')[1]);
-                        await HandleQuizSelection(chatId, quizId);
-                    }
-                    else if (messageText == "completed")
-                    {
-                        await SendMessageWithRetry(chatId, "Этот квиз уже пройден. Выберите другой квиз.");
-                    }
-                    else
-                    {
-                        await SendMessageWithRetry(chatId, "Неизвестная команда. Используйте /start для начала работы.");
-                    }
-                    break;
+                _logger.LogInformation($"Обработка команды: {messageText}");
+                await HandleCommandAsync(botClient, messageText, chatId, cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation("Обработка обычного сообщения");
+                await HandleMessageAsync(botClient, messageText, chatId, cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке обновления: {Error}", ex.Message);
-            if (update.Message?.Chat.Id != null)
-            {
-                await SendMessageWithRetry(update.Message.Chat.Id, "Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.");
-            }
+            _logger.LogError(ex, "Ошибка при обработке обновления");
+            throw;
         }
     }
 
-    private async Task SendMessageWithRetry(long chatId, string text, IReplyMarkup? replyMarkup = null)
+    private async Task SendMessageWithRetry(ITelegramBotClient botClient, long chatId, string text, IReplyMarkup? replyMarkup = null, CancellationToken cancellationToken = default)
     {
-        for (int i = 0; i < MaxRetries; i++)
+        const int maxRetries = 3;
+        int retryCount = 0;
+
+        while (retryCount < maxRetries)
         {
             try
             {
-                await _botClient.SendTextMessageAsync(
+                await botClient.SendTextMessageAsync(
                     chatId: chatId,
                     text: text,
                     replyMarkup: replyMarkup,
-                    parseMode: ParseMode.Html
-                );
+                    cancellationToken: cancellationToken);
                 return;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Попытка {Attempt} из {MaxRetries} отправить сообщение не удалась", i + 1, MaxRetries);
-                if (i < MaxRetries - 1)
+                retryCount++;
+                _logger.LogError(ex, $"Ошибка при отправке сообщения (попытка {retryCount}/{maxRetries})");
+                
+                if (retryCount == maxRetries)
                 {
-                    await Task.Delay(RetryDelayMs * (i + 1));
-                }
-                else
-                {
-                    _logger.LogError(ex, "Не удалось отправить сообщение после {MaxRetries} попыток", MaxRetries);
+                    _logger.LogError(ex, "Не удалось отправить сообщение после всех попыток");
                     throw;
                 }
+                
+                await Task.Delay(1000 * retryCount, cancellationToken);
             }
         }
     }
@@ -185,14 +153,14 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             });
 
             _logger.LogInformation("Подготовлена клавиатура");
-            await SendMessageWithRetry(chatId, message, keyboard);
+            await SendMessageWithRetry(_botClient, chatId, message, keyboard);
             _logger.LogInformation("Сообщение успешно отправлено в чат {ChatId}", chatId);
             _logger.LogInformation("=== Конец обработки команды /start ===");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке команды /start для чата {ChatId}", chatId);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -213,7 +181,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (quizzes == null || !quizzes.Any())
             {
                 _logger.LogInformation("Список квизов пуст, отправляем сообщение пользователю");
-                await SendMessageWithRetry(chatId, "К сожалению, пока нет доступных квизов. Попробуйте добавить квиз через административную панель.");
+                await SendMessageWithRetry(_botClient, chatId, "К сожалению, пока нет доступных квизов. Попробуйте добавить квиз через административную панель.");
                 return;
             }
 
@@ -247,10 +215,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             var keyboard = new InlineKeyboardMarkup(quizButtons);
 
             _logger.LogInformation("Отправляем список квизов пользователю");
-            await SendMessageWithRetry(
-                chatId,
-                "Выберите квиз:\n(✅ - пройденные квизы)",
-                replyMarkup: keyboard);
+            await SendMessageWithRetry(_botClient, chatId, "Выберите квиз:\n(✅ - пройденные квизы)", replyMarkup: keyboard);
         }
         catch (Exception ex)
         {
@@ -259,7 +224,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             {
                 _logger.LogError("Inner Exception: {Error}", ex.InnerException.Message);
             }
-            await SendMessageWithRetry(chatId, "Произошла ошибка при получении списка квизов. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при получении списка квизов. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -272,7 +237,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             if (!quizzes.Any())
             {
-                await SendMessageWithRetry(chatId, "Пока нет доступных квизов.");
+                await SendMessageWithRetry(_botClient, chatId, "Пока нет доступных квизов.");
                 return;
             }
 
@@ -289,15 +254,12 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             var keyboard = new InlineKeyboardMarkup(quizButtons);
 
-            await SendMessageWithRetry(
-                chatId,
-                "Выберите квиз для просмотра таблицы лидеров:",
-                replyMarkup: keyboard);
+            await SendMessageWithRetry(_botClient, chatId, "Выберите квиз для просмотра таблицы лидеров:", replyMarkup: keyboard);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при получении списка квизов для таблицы лидеров: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при получении списка квизов. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при получении списка квизов. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -309,7 +271,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             var quiz = await context.Quizzes.FirstOrDefaultAsync(q => q.Id == quizId);
             if (quiz == null)
             {
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
@@ -327,7 +289,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             if (!results.Any())
             {
-                await SendMessageWithRetry(chatId, $"Пока нет результатов для квиза \"{quiz.Title}\".");
+                await SendMessageWithRetry(_botClient, chatId, $"Пока нет результатов для квиза \"{quiz.Title}\".");
                 return;
             }
 
@@ -341,12 +303,12 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 new[] { InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "main_menu") }
             });
 
-            await SendMessageWithRetry(chatId, message, keyboard);
+            await SendMessageWithRetry(_botClient, chatId, message, keyboard);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при получении таблицы лидеров для квиза: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при получении таблицы лидеров. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при получении таблицы лидеров. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -365,7 +327,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 
                 if (hasAttempt)
                 {
-                    await SendMessageWithRetry(chatId, "Вы уже проходили этот квиз. Выберите другой квиз с помощью команды /quizzes");
+                    await SendMessageWithRetry(_botClient, chatId, "Вы уже проходили этот квиз. Выберите другой квиз с помощью команды /quizzes");
                     return;
                 }
             }
@@ -378,7 +340,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (quiz == null)
             {
                 _logger.LogWarning("Квиз не найден. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
@@ -386,7 +348,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (firstQuestion == null)
             {
                 _logger.LogWarning("В квизе нет вопросов. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "В этом квизе пока нет вопросов.");
+                await SendMessageWithRetry(_botClient, chatId, "В этом квизе пока нет вопросов.");
                 return;
             }
 
@@ -395,7 +357,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке выбора квиза");
-            await SendMessageWithRetry(chatId, "Произошла ошибка при загрузке квиза. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при загрузке квиза. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -412,7 +374,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (quiz == null)
             {
                 _logger.LogWarning("Квиз не найден. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
@@ -420,7 +382,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (currentQuestion == null)
             {
                 _logger.LogWarning("Вопрос не найден. ID: {QuestionId}", questionId);
-                await SendMessageWithRetry(chatId, "Вопрос не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Вопрос не найден.");
                 return;
             }
 
@@ -469,10 +431,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             // Отправляем сообщение о правильности ответа
             var isCorrect = answer == currentQuestion.CorrectAnswer;
-            await SendMessageWithRetry(
-                chatId,
-                isCorrect ? "✅ Правильно!" : $"❌ Неправильно. Правильный ответ: {currentQuestion.CorrectAnswer ?? "Неизвестно"}"
-            );
+            await SendMessageWithRetry(_botClient, chatId, isCorrect ? "✅ Правильно!" : $"❌ Неправильно. Правильный ответ: {currentQuestion.CorrectAnswer ?? "Неизвестно"}");
 
             // Находим следующий вопрос
             var questions = quiz.Questions.OrderBy(q => q.Id).ToList();
@@ -497,7 +456,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке ответа: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -560,7 +519,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (question == null)
             {
                 _logger.LogWarning("Получен null вопрос для chatId: {ChatId}", chatId);
-                await SendMessageWithRetry(chatId, "Ошибка: вопрос не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Ошибка: вопрос не найден.");
                 return;
             }
 
@@ -573,7 +532,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (loadedQuestion == null)
             {
                 _logger.LogWarning("Вопрос не найден в базе данных. ID: {QuestionId}", question.Id);
-                await SendMessageWithRetry(chatId, "Ошибка: вопрос не найден в базе данных.");
+                await SendMessageWithRetry(_botClient, chatId, "Ошибка: вопрос не найден в базе данных.");
                 return;
             }
 
@@ -605,14 +564,14 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             else
             {
                 _logger.LogWarning("У вопроса нет вариантов ответа. ID: {QuestionId}", loadedQuestion.Id);
-                await SendMessageWithRetry(chatId, "Ошибка: у вопроса нет вариантов ответа.");
+                await SendMessageWithRetry(_botClient, chatId, "Ошибка: у вопроса нет вариантов ответа.");
                 return;
             }
 
             if (options == null || !options.Any())
             {
                 _logger.LogWarning("Получен пустой массив вариантов ответов. ID: {QuestionId}", loadedQuestion.Id);
-                await SendMessageWithRetry(chatId, "Ошибка: у вопроса нет вариантов ответа.");
+                await SendMessageWithRetry(_botClient, chatId, "Ошибка: у вопроса нет вариантов ответа.");
                 return;
             }
 
@@ -626,16 +585,12 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 }));
 
             // Отправляем вопрос с вариантами ответов
-            await SendMessageWithRetry(
-                chatId: chatId,
-                text: loadedQuestion.Text ?? "Вопрос без текста",
-                replyMarkup: keyboard
-            );
+            await SendMessageWithRetry(_botClient, chatId, loadedQuestion.Text ?? "Вопрос без текста", replyMarkup: keyboard);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке вопроса: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при загрузке вопроса. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при загрузке вопроса. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -671,7 +626,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 if (parts.Length != 4)
                 {
                     _logger.LogWarning("Некорректный формат callback data: {Data}", callbackQuery.Data);
-                    await SendMessageWithRetry(chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
+                    await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
                     return;
                 }
 
@@ -692,7 +647,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке callback query: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -709,14 +664,14 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (quiz == null)
             {
                 _logger.LogWarning("Квиз не найден. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
             if (quiz.Questions == null || !quiz.Questions.Any())
             {
                 _logger.LogWarning("В квизе нет вопросов. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "В этом квизе пока нет вопросов.");
+                await SendMessageWithRetry(_botClient, chatId, "В этом квизе пока нет вопросов.");
                 return;
             }
 
@@ -724,7 +679,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
             if (firstQuestion == null)
             {
                 _logger.LogWarning("Не удалось получить первый вопрос. ID: {QuizId}", quizId);
-                await SendMessageWithRetry(chatId, "Ошибка при загрузке первого вопроса.");
+                await SendMessageWithRetry(_botClient, chatId, "Ошибка при загрузке первого вопроса.");
                 return;
             }
 
@@ -741,7 +696,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при запуске квиза: {Error}", ex.Message);
-            await SendMessageWithRetry(chatId, "Произошла ошибка при запуске квиза. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при запуске квиза. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -751,7 +706,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         {
             if (!_userStates.TryGetValue(chatId, out var state))
             {
-                await SendMessageWithRetry(chatId, "Сначала выберите квиз.");
+                await SendMessageWithRetry(_botClient, chatId, "Сначала выберите квиз.");
                 return;
             }
 
@@ -762,13 +717,13 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             if (answer == null)
             {
-                await SendMessageWithRetry(chatId, "Ответ не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Ответ не найден.");
                 return;
             }
 
             if (answer.QuestionId != state.CurrentQuestionId)
             {
-                await SendMessageWithRetry(chatId, "Этот ответ не относится к текущему вопросу.");
+                await SendMessageWithRetry(_botClient, chatId, "Этот ответ не относится к текущему вопросу.");
                 return;
             }
 
@@ -778,17 +733,14 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 state.Score++;
             }
 
-            await SendMessageWithRetry(
-                chatId,
-                answer.IsCorrect ? "✅ Правильно!" : $"❌ Неправильно. Правильный ответ: {answer.Question?.CorrectAnswer ?? "Неизвестно"}"
-            );
+            await SendMessageWithRetry(_botClient, chatId, answer.IsCorrect ? "✅ Правильно!" : $"❌ Неправильно. Правильный ответ: {answer.Question?.CorrectAnswer ?? "Неизвестно"}");
 
             await SendNextQuestionAsync(chatId, answer.QuestionId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке ответа");
-            await SendMessageWithRetry(chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -798,7 +750,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         {
             if (!_userStates.TryGetValue(chatId, out var state))
             {
-                await SendMessageWithRetry(chatId, "Сначала выберите квиз.");
+                await SendMessageWithRetry(_botClient, chatId, "Сначала выберите квиз.");
                 return;
             }
 
@@ -809,7 +761,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             if (quiz == null)
             {
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
@@ -830,7 +782,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при отправке следующего вопроса");
-            await SendMessageWithRetry(chatId, "Произошла ошибка при загрузке следующего вопроса. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при загрузке следующего вопроса. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -840,7 +792,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
         {
             if (!_userStates.TryGetValue(chatId, out var state))
             {
-                await SendMessageWithRetry(chatId, "Сначала выберите квиз.");
+                await SendMessageWithRetry(_botClient, chatId, "Сначала выберите квиз.");
                 return;
             }
 
@@ -851,7 +803,7 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
 
             if (quiz == null)
             {
-                await SendMessageWithRetry(chatId, "Квиз не найден.");
+                await SendMessageWithRetry(_botClient, chatId, "Квиз не найден.");
                 return;
             }
 
@@ -884,13 +836,13 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 new[] { InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "main_menu") }
             });
 
-            await SendMessageWithRetry(chatId, message, keyboard);
+            await SendMessageWithRetry(_botClient, chatId, message, keyboard);
             _userStates.Remove(chatId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при завершении квиза");
-            await SendMessageWithRetry(chatId, "Произошла ошибка при завершении квиза. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при завершении квиза. Пожалуйста, попробуйте позже.");
         }
     }
 
@@ -921,15 +873,62 @@ public class TelegramBotService : BackgroundService, ITelegramBotService
                 }
             });
 
-            await SendMessageWithRetry(
-                chatId,
-                "Нажмите на кнопку ниже, чтобы открыть веб-приложение:",
-                keyboard);
+            await SendMessageWithRetry(_botClient, chatId, "Нажмите на кнопку ниже, чтобы открыть веб-приложение:", keyboard);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке команды /app");
-            await SendMessageWithRetry(chatId, "Произошла ошибка при открытии приложения. Пожалуйста, попробуйте позже.");
+            await SendMessageWithRetry(_botClient, chatId, "Произошла ошибка при открытии приложения. Пожалуйста, попробуйте позже.");
+        }
+    }
+
+    private async Task HandleCommandAsync(ITelegramBotClient botClient, string command, long chatId, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"Обработка команды: {command}");
+
+        switch (command)
+        {
+            case "/start":
+                await HandleStartCommand(chatId);
+                break;
+
+            case "/quizzes":
+                await HandleQuizzesCommand(chatId);
+                break;
+
+            case "/leaderboard":
+                await HandleLeaderboardCommand(chatId);
+                break;
+
+            case "/app":
+                await HandleAppCommand(chatId);
+                break;
+
+            default:
+                if (command.StartsWith("/quiz_"))
+                {
+                    var quizId = int.Parse(command.Split('_')[1]);
+                    await HandleQuizSelection(chatId, quizId);
+                }
+                else
+                {
+                    await SendMessageWithRetry(_botClient, chatId, "Неизвестная команда. Используйте /start для начала работы.", null, cancellationToken);
+                }
+                break;
+        }
+    }
+
+    private async Task HandleMessageAsync(ITelegramBotClient botClient, string message, long chatId, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"Обработка сообщения: {message}");
+
+        if (message == "completed")
+        {
+            await SendMessageWithRetry(_botClient, chatId, "Этот квиз уже пройден. Выберите другой квиз.", null, cancellationToken);
+        }
+        else
+        {
+            await SendMessageWithRetry(_botClient, chatId, "Неизвестная команда. Используйте /start для начала работы.", null, cancellationToken);
         }
     }
 } 
