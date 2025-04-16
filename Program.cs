@@ -96,7 +96,7 @@ app.Use(async (context, next) =>
     try
     {
         // Проверяем, что запрос идет к нашему вебхуку
-        if (context.Request.Path.StartsWithSegments("/api/telegramwebhook"))
+        if (context.Request.Path.StartsWithSegments("/api/webhook"))
         {
             logger.LogInformation("=== Начало обработки вебхука ===");
             
