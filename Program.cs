@@ -1,18 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using QuizTelegramApp.Data;
 using QuizTelegramApp.Services;
-using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Добавляем сервисы в контейнер
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -78,7 +80,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Настройка обработки вебхуков
-app.MapPost("/api/webhook", async (HttpContext context, TelegramBotService botService, ITelegramBotClient botClient) =>
+app.MapPost("/api/webhook", async (HttpContext context, ITelegramBotService botService, ITelegramBotClient botClient) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     
