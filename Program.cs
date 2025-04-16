@@ -82,99 +82,36 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Настройка обработки вебхуков
-app.Use(async (context, next) =>
+app.MapPost("/webhook", async (HttpContext context, ITelegramBotService botService) =>
 {
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("\n=== Начало обработки вебхука ===");
     
+    var remoteIp = context.Connection.RemoteIpAddress;
+    var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+    logger.LogInformation($"Remote IP: {remoteIp}, X-Forwarded-For: {forwardedFor}");
+
+    using var reader = new StreamReader(context.Request.Body);
+    var body = await reader.ReadToEndAsync();
+    logger.LogInformation($"Тело запроса: {body}");
+
     try
     {
-        // Проверяем, что запрос идет к нашему вебхуку
-        if (context.Request.Path.StartsWithSegments("/api/webhook"))
-        {
-            logger.LogInformation("=== Начало обработки вебхука ===");
-            
-            // Получаем IP-адрес из заголовка X-Forwarded-For
-            var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
-            var remoteIp = context.Connection.RemoteIpAddress;
-            
-            logger.LogInformation($"Remote IP: {remoteIp}, X-Forwarded-For: {forwardedFor}");
-            
-            // Проверяем IP-адрес
-            if (!string.IsNullOrEmpty(forwardedFor))
-            {
-                var telegramIps = new[]
-                {
-                    "149.154.160.0/20",
-                    "91.108.4.0/22",
-                    "91.108.56.0/22"
-                };
-
-                var isFromTelegram = telegramIps.Any(ipRange => 
-                    IsInRange(forwardedFor, ipRange));
-
-                if (!isFromTelegram)
-                {
-                    logger.LogWarning($"Запрос не от Telegram: {forwardedFor}");
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    return;
-                }
-            }
-            else
-            {
-                logger.LogWarning("Отсутствует заголовок X-Forwarded-For");
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return;
-            }
-
-            // Читаем тело запроса
-            context.Request.EnableBuffering();
-            using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
-            var body = await reader.ReadToEndAsync();
-            context.Request.Body.Position = 0;
-            logger.LogInformation($"Тело запроса: {body}");
-
-            try
-            {
-                // Десериализуем обновление
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    Converters = { new JsonStringEnumConverter() }
-                };
-                var update = JsonSerializer.Deserialize<Update>(body, options);
-                if (update != null)
-                {
-                    logger.LogInformation($"Тип обновления: {update.Type}");
-                    
-                    if (update.Message != null)
-                    {
-                        logger.LogInformation($"Сообщение от {update.Message.From?.Username} (ID: {update.Message.From?.Id}): {update.Message.Text}");
-                    }
-                }
-
-                // Обрабатываем обновление
-                var botService = context.RequestServices.GetRequiredService<ITelegramBotService>();
-                var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
-                await botService.HandleUpdateAsync(botClient, update, CancellationToken.None);
-
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                logger.LogInformation("=== Успешная обработка вебхука ===");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Ошибка при обработке вебхука");
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            }
-            return;
-        }
+        var update = Update.FromJson(body);
         
-        await next();
+        if (update == null)
+        {
+            logger.LogError("Не удалось десериализовать обновление");
+            return Results.BadRequest("Invalid update");
+        }
+
+        logger.LogInformation($"Тип обновления: {update.Type}");
+        await botService.HandleUpdateAsync(update);
+        return Results.Ok();
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Ошибка при обработке вебхука");
-        context.Response.StatusCode = 500;
-        await context.Response.WriteAsync("Internal server error");
+        return Results.BadRequest($"Error: {ex.Message}");
     }
 });
 
