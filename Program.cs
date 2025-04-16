@@ -6,6 +6,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -137,7 +138,8 @@ app.Use(async (context, next) =>
                 // Десериализуем обновление
                 var options = new JsonSerializerOptions
                 {
-                    PropertyNameCaseInsensitive = true
+                    PropertyNameCaseInsensitive = true,
+                    Converters = { new JsonStringEnumConverter() }
                 };
                 var update = JsonSerializer.Deserialize<Update>(body, options);
                 if (update != null)
