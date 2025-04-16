@@ -135,7 +135,11 @@ app.Use(async (context, next) =>
             try
             {
                 // Десериализуем обновление
-                var update = JsonSerializer.Deserialize<Update>(body);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var update = JsonSerializer.Deserialize<Update>(body, options);
                 if (update != null)
                 {
                     logger.LogInformation($"Тип обновления: {update.Type}");
