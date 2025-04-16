@@ -89,56 +89,39 @@ var telegramIps = new[]
 };
 
 // Настройка обработки вебхуков
-app.MapPost("/api/webhook", async (HttpContext context, ITelegramBotService botService, ITelegramBotClient botClient) =>
+app.Use(async (context, next) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     
     try
     {
-        logger.LogInformation("=== Начало обработки вебхука ===");
+        // Проверяем, что запрос идет к нашему вебхуку
+        if (context.Request.Path.StartsWithSegments("/api/telegramwebhook"))
+        {
+            logger.LogInformation("=== Начало обработки вебхука ===");
+            
+            // Получаем реальный IP-адрес клиента
+            var remoteIp = context.Connection.RemoteIpAddress;
+            var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+            logger.LogInformation("Remote IP: {RemoteIp}, X-Forwarded-For: {ForwardedFor}", remoteIp, forwardedFor);
+
+            // Проверяем IP-адрес
+            if (!telegramIps.Any(ip => ip.GetAddressBytes().SequenceEqual(remoteIp.GetAddressBytes())))
+            {
+                logger.LogWarning("Запрос не от Telegram: {RemoteIp}", remoteIp);
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Unauthorized");
+                return;
+            }
+        }
         
-        // Получаем реальный IP-адрес клиента
-        var remoteIp = context.Connection.RemoteIpAddress;
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
-        logger.LogInformation("Remote IP: {RemoteIp}, X-Forwarded-For: {ForwardedFor}", remoteIp, forwardedFor);
-
-        // Проверяем IP-адрес
-        if (!telegramIps.Any(ip => ip.GetAddressBytes().SequenceEqual(remoteIp.GetAddressBytes())))
-        {
-            logger.LogWarning("Запрос не от Telegram: {RemoteIp}", remoteIp);
-            return Results.BadRequest("Unauthorized");
-        }
-
-        // Читаем тело запроса
-        using var reader = new StreamReader(context.Request.Body);
-        var body = await reader.ReadToEndAsync();
-        logger.LogInformation("Request body: {Body}", body);
-
-        // Десериализуем обновление
-        var update = JsonSerializer.Deserialize<Update>(body);
-        if (update == null)
-        {
-            logger.LogWarning("Не удалось десериализовать обновление");
-            return Results.BadRequest("Invalid update");
-        }
-
-        logger.LogInformation("Тип обновления: {UpdateType}", update.Type);
-        if (update.Message != null)
-        {
-            logger.LogInformation("Сообщение от: {FromId}, Текст: {Text}", 
-                update.Message.From?.Id, update.Message.Text);
-        }
-
-        // Обрабатываем обновление
-        await botService.HandleUpdateAsync(botClient, update, context.RequestAborted);
-
-        logger.LogInformation("=== Успешная обработка вебхука ===");
-        return Results.Ok();
+        await next();
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Ошибка при обработке вебхука");
-        return Results.Problem("Internal server error");
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsync("Internal server error");
     }
 });
 
