@@ -244,3 +244,22 @@ public partial class Program
         return true;
     }
 }
+
+public class UnixDateTimeConverter : JsonConverter<DateTime>
+{
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            var unixTime = reader.GetInt64();
+            return DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+        }
+        throw new JsonException($"Unexpected token type: {reader.TokenType}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+    {
+        var unixTime = new DateTimeOffset(value).ToUnixTimeSeconds();
+        writer.WriteNumberValue(unixTime);
+    }
+}
