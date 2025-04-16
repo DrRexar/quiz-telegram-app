@@ -96,7 +96,12 @@ app.MapPost("/webhook", async (HttpContext context, ITelegramBotService botServi
 
     try
     {
-        var update = Update.FromJson(body);
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new JsonStringEnumConverter() }
+        };
+        var update = JsonSerializer.Deserialize<Update>(body, options);
         
         if (update == null)
         {
@@ -105,7 +110,8 @@ app.MapPost("/webhook", async (HttpContext context, ITelegramBotService botServi
         }
 
         logger.LogInformation($"Тип обновления: {update.Type}");
-        await botService.HandleUpdateAsync(update);
+        var botClient = context.RequestServices.GetRequiredService<ITelegramBotClient>();
+        await botService.HandleUpdateAsync(botClient, update, CancellationToken.None);
         return Results.Ok();
     }
     catch (Exception ex)
