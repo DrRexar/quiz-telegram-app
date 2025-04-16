@@ -4,7 +4,10 @@ using QuizTelegramApp.Services;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using Telegram.Bot;
-using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
