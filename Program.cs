@@ -6,6 +6,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using System.Text.Json;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,6 +80,14 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 
+// Список IP-адресов Telegram
+var telegramIps = new[]
+{
+    IPAddress.Parse("149.154.160.0"),
+    IPAddress.Parse("91.108.4.0"),
+    IPAddress.Parse("91.108.56.0")
+};
+
 // Настройка обработки вебхуков
 app.MapPost("/api/webhook", async (HttpContext context, ITelegramBotService botService, ITelegramBotClient botClient) =>
 {
@@ -87,14 +96,16 @@ app.MapPost("/api/webhook", async (HttpContext context, ITelegramBotService botS
     try
     {
         logger.LogInformation("=== Начало обработки вебхука ===");
-        logger.LogInformation("Remote IP: {RemoteIpAddress}", context.Connection.RemoteIpAddress);
-        logger.LogInformation("Headers: {Headers}", context.Request.Headers);
+        
+        // Получаем реальный IP-адрес клиента
+        var remoteIp = context.Connection.RemoteIpAddress;
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+        logger.LogInformation("Remote IP: {RemoteIp}, X-Forwarded-For: {ForwardedFor}", remoteIp, forwardedFor);
 
-        // Проверяем, что запрос пришел от Telegram
-        var userAgent = context.Request.Headers["User-Agent"].ToString();
-        if (!userAgent.Contains("TelegramBot"))
+        // Проверяем IP-адрес
+        if (!telegramIps.Any(ip => ip.GetAddressBytes().SequenceEqual(remoteIp.GetAddressBytes())))
         {
-            logger.LogWarning("Получен запрос не от Telegram: {UserAgent}", userAgent);
+            logger.LogWarning("Запрос не от Telegram: {RemoteIp}", remoteIp);
             return Results.BadRequest("Unauthorized");
         }
 
